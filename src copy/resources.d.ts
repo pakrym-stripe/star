@@ -10,7 +10,7 @@ export type Resources = {
     ['subscription']: {
         object: 'subscription',
         id: string,
-        name: string,
+        name: number,
         description: string,
         schedules?: ListResult<'subscription_schedule'>,
     }
