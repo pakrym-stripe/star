@@ -7,21 +7,21 @@ type RecursivePartial<T> = {
       T[P];
   };
 
-type ListResult<TResource extends keyof Resources> = {
+type ListResult<TResource extends Resources> = {
     object: 'list',
-    data: Array<Resource<TResource>>,
+    data: Array<TResource>,
     has_next: boolean,
 }
-type SearchResult<TResource extends keyof Resources> = {
+type SearchResult<TResource extends Resources> = {
     object: 'list',
-    data: Array<Resource<TResource>>
+    data: Array<TResource>
 }
 
-export type DeletedResource<TResource extends keyof Resources> = Resource<TResource>
-export type Resource<TResource extends keyof Resources> = Resources[TResource]
+export type DeletedResource<TResource extends Resources> = Resource<TResource>
+export type Resource<TResource extends Resources> = Resources[TResource]
 export type Endpoint<TPath extends string, TRequest, TResponse> = [TPath, TRequest, TResponse]
 
-export type UpdateParams<TResource extends keyof Resources> = Omit<RecursivePartial<Resource<TResource>>, 'id'>;
+export type UpdateParams<TResource extends Resources> = Omit<RecursivePartial<TResource>, 'id'>;
 export type ListParams = {start_from?: string};
 
 export type Beta<T> = T & { __beta?: undefined } 

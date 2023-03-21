@@ -1,3 +1,4 @@
+import { Subscription, SubscriptionSchedule } from "./resources";
 import { Endpoint, ListResult, Resource, UpdateParams } from "./utils";
 
 export type Endpoints =
@@ -5,17 +6,17 @@ export type Endpoints =
         {
             from_subscription: string
         },
-        Resource<'subscription_schedule'>
+        SubscriptionSchedule
     ] |
     ['POST /v1/subscription_schedules/:id',
-        {id: string} & UpdateParams<'subscription_schedule'>,
-        Resource<'subscription_schedule'>
+        {id: string} & UpdateParams<SubscriptionSchedule>,
+        SubscriptionSchedule
     ] |
     ['GET /v1/subscription_schedules',
         {},
-        ListResult<'subscription_schedule'>
+        ListResult<SubscriptionSchedule>
     ] |
     ['GET /v1/subscriptions',
         {},
-        ListResult<'subscription'>
+        ListResult<Subscription>
     ];

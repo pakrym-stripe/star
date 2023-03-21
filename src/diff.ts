@@ -64,7 +64,7 @@ type PropertyDiff = {
 };
 type ObjectDiff = {
   kind: "object";
-  properties: NamedCollectionDiff<Property, PropertyDiff>;
+  properties: NamedCollectionDiff<PropertyDiff>;
 };
 
 type ArrayDiff = {
@@ -74,7 +74,7 @@ type ArrayDiff = {
 
 type EnumDiff = {
   kind: "enum";
-  item: NamedCollectionDiff<string, string>;
+  item: NamedCollectionDiff<string>;
 };
 
 type Unchanged = {
@@ -93,10 +93,10 @@ type NamedCollectionDiffItem<TDiff> = {
   value: TDiff;
 };
 
-type NamedCollectionDiff<T, TDiff> = Array<NamedCollectionDiffItem<TDiff>>;
+type NamedCollectionDiff<TDiff> = Array<NamedCollectionDiffItem<TDiff>>;
 
 type ApiDiff = {
-  endpoints: NamedCollectionDiff<Endpoint, EndpointDiff>;
+  endpoints: NamedCollectionDiff<EndpointDiff>;
 };
 
 type Api = {
@@ -213,29 +213,25 @@ function footprintOfType(type: Type, node: Node): Value {
 
   if (type.isUnion()) {
     const uts = type
-  		.getUnionTypes()
-  		.filter(ut => !ut.isUndefined())
-  		.map((type) => next(type));
-    
-    if (uts.length != 1)
-    {
-      throw new Error('Only single element unions aligned');
+      .getUnionTypes()
+      .filter((ut) => !ut.isUndefined())
+      .map((type) => next(type));
+
+    if (uts.length != 1) {
+      throw new Error("Only single element unions aligned");
     }
 
     return uts[0];
   }
 
   if (type.isIntersection()) {
-    const types = type
-  		.getIntersectionTypes()
-  		.map((type) => next(type));
-    
-    const allProps: Record<string, Property> = {}
+    const types = type.getIntersectionTypes().map((type) => next(type));
+
+    const allProps: Record<string, Property> = {};
 
     for (const ut of types) {
-      if (ut.kind != 'object')
-      {
-        throw new Error('Only unions of objects are supported');
+      if (ut.kind != "object") {
+        throw new Error("Only unions of objects are supported");
       }
 
       for (const prop of ut.properties) {
@@ -244,9 +240,9 @@ function footprintOfType(type: Type, node: Node): Value {
     }
 
     return {
-      kind: 'object',
+      kind: "object",
       properties: Object.values(allProps),
-    }
+    };
   }
 
   // when you encounter this, consider changing the function
@@ -315,7 +311,7 @@ const diff = (before: Api, after: Api): ApiDiff => {
     after: Array<T>,
     nf: (t: T) => string,
     df: (before: T, after: T) => TDiff
-  ): NamedCollectionDiff<T, TDiff> => {
+  ): NamedCollectionDiff<TDiff> => {
     const b = Object.fromEntries<T>(before.map((i) => [nf(i), i]));
     const bKeys = Object.keys(b);
     if (bKeys.length != before.length) {
@@ -328,7 +324,7 @@ const diff = (before: Api, after: Api): ApiDiff => {
     }
     const allKeys = new Set([...aKeys, ...bKeys]);
 
-    const diffs: NamedCollectionDiff<T, TDiff> = [];
+    const diffs: NamedCollectionDiff<TDiff> = [];
 
     for (const k of allKeys) {
       const aa = a[k];
@@ -480,9 +476,9 @@ const renderDiff = (diff: ApiDiff) => {
           e.properties.forEach((p) => {});
         });
         break;
-      case 'literal':
-          write(`'${e.value}'`);
-          break;
+      case "literal":
+        write(`'${e.value}'`);
+        break;
       default:
         write(e.kind);
         break;
@@ -490,7 +486,7 @@ const renderDiff = (diff: ApiDiff) => {
   };
 
   const renderNamedCollectionDiff = <T, TDiff>(
-    d: NamedCollectionDiff<T, TDiff>,
+    d: NamedCollectionDiff<TDiff>,
     rd: (td: TDiff) => void
   ) => {
     for (const e of d) {
@@ -511,7 +507,7 @@ const renderDiff = (diff: ApiDiff) => {
   const renderPropertyDiff = (p: PropertyDiff) => {
     write(p.name);
     if (!p.optional.changed) {
-      write(p.optional.after ? "?": "");
+      write(p.optional.after ? "?" : "");
     } else if (p.optional.after) {
       addedBlock(() => write("?"));
     } else {
@@ -530,10 +526,7 @@ const renderDiff = (diff: ApiDiff) => {
         break;
       case "object":
         braceBlock(() => {
-          renderNamedCollectionDiff(
-            e.properties,
-            renderPropertyDiff
-          );
+          renderNamedCollectionDiff(e.properties, renderPropertyDiff);
         });
         break;
       case "unchanged":
