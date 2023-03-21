@@ -2,28 +2,22 @@
 
 import chalk from "chalk";
 
-import {
-  Project,
-  Type,
-  Symbol,
-  SymbolFlags,
-  Signature,
-  Node,
-  TypeFormatFlags,
-} from "ts-morph";
+import { Project, Type, Symbol, SymbolFlags, Node } from "ts-morph";
 
 type PrimitiveType =
   | {
-      kind: "string" | "boolean" | "number" | "TODO";
+      kind: "string" | "boolean" | "number" | "uknown";
     }
   | {
       kind: "literal";
       value: string;
-    }
-  | {
-      kind: "enum";
-      values: string[];
     };
+
+type UnionValue = {
+  kind: "union";
+  items: Array<Value>;
+};
+
 type ArrayValue = {
   kind: "array";
   item: Value;
@@ -39,7 +33,7 @@ type ObjectValue = {
   properties: Array<Property>;
 };
 
-type Value = PrimitiveType | ArrayValue | ObjectValue;
+type Value = PrimitiveType | ArrayValue | ObjectValue | UnionValue;
 
 type Endpoint = {
   name: string;
@@ -64,7 +58,7 @@ type PropertyDiff = {
 };
 type ObjectDiff = {
   kind: "object";
-  properties: NamedCollectionDiff<PropertyDiff>;
+  properties: CollectionDiff<PropertyDiff>;
 };
 
 type ArrayDiff = {
@@ -72,31 +66,31 @@ type ArrayDiff = {
   item: ValueDiff;
 };
 
-type EnumDiff = {
-  kind: "enum";
-  item: NamedCollectionDiff<string>;
+type UnionDiff = {
+  kind: "union";
+  items: CollectionDiff<ValueDiff>;
 };
 
 type Unchanged = {
   kind: "unchanged";
   value: Value;
 };
-type ValueDiff = Unchanged | ObjectDiff | ArrayDiff | PrimitiveDiff | EnumDiff;
+type ValueDiff = Unchanged | ObjectDiff | ArrayDiff | PrimitiveDiff | UnionDiff;
 
 type EndpointDiff = {
   name: string;
   request: ValueDiff;
   response: ValueDiff;
 };
-type NamedCollectionDiffItem<TDiff> = {
+type CollectionDiffItem<TDiff> = {
   kind: "added" | "removed" | "unchanged";
   value: TDiff;
 };
 
-type NamedCollectionDiff<TDiff> = Array<NamedCollectionDiffItem<TDiff>>;
+type CollectionDiff<TDiff> = Array<CollectionDiffItem<TDiff>>;
 
 type ApiDiff = {
-  endpoints: NamedCollectionDiff<EndpointDiff>;
+  endpoints: CollectionDiff<EndpointDiff>;
 };
 
 type Api = {
@@ -126,16 +120,16 @@ function isPrimitive(type: Type): PrimitiveType | null {
     return { kind: "literal", value: type.getLiteralValueOrThrow() as string };
   }
   if (type.isUndefined()) {
-    return { kind: "TODO" };
+    return { kind: "uknown" };
   }
   if (type.isNull()) {
-    return { kind: "TODO" };
+    return { kind: "uknown" };
   }
   if (type.isUnknown()) {
-    return { kind: "TODO" };
+    return { kind: "uknown" };
   }
   if (type.isAny()) {
-    return { kind: "TODO" };
+    return { kind: "uknown" };
   }
   if (type.isNumber()) {
     return { kind: "number" };
@@ -150,27 +144,9 @@ function isPrimitive(type: Type): PrimitiveType | null {
     return { kind: "boolean" };
   }
   if (intrinsicNameOf(type) === "void") {
-    return { kind: "TODO" };
+    return { kind: "uknown" };
   }
   return null;
-}
-
-function isSimpleSignature(type: Type) {
-  if (!type.isObject()) {
-    return false;
-  }
-  const sigs = type.getCallSignatures();
-  const props = type.getProperties();
-  const args = type.getTypeArguments();
-  const indexType = type.getNumberIndexType();
-  const stringType = type.getStringIndexType();
-  return (
-    sigs.length === 1 &&
-    props.length === 0 &&
-    args.length === 0 &&
-    !indexType &&
-    !stringType
-  );
 }
 
 function intrinsicNameOf(type: Type) {
@@ -178,9 +154,22 @@ function intrinsicNameOf(type: Type) {
     .intrinsicName;
 }
 
-function footprintOfType(type: Type, node: Node): Value {
+function typeToValue(
+  type: Type,
+  node: Node,
+  cache: Record<string, Value>
+): Value {
+  const alias = type.getAliasSymbol()?.getFullyQualifiedName();
+  if (alias) {
+    //console.log(alias);
+    const cached = cache[alias];
+    if (cached) {
+      return cached;
+    }
+  }
+
   const next = (nextType: Type) => {
-    return footprintOfType(nextType, node);
+    return typeToValue(nextType, node, cache);
   };
 
   const primitive = isPrimitive(type);
@@ -198,17 +187,23 @@ function footprintOfType(type: Type, node: Node): Value {
   }
 
   if (type.isTuple()) {
-    return { kind: "TODO" };
+    return { kind: "uknown" };
   }
 
   if (type.isObject()) {
+    const obj: Value = {
+      kind: "object",
+      properties: [],
+    };
+
+    if (alias) {
+      cache[alias] = obj;
+    }
+
     const props = type.getProperties();
 
-    const propsText = properties(props, node, next);
-    return {
-      kind: "object",
-      properties: propsText,
-    };
+    obj.properties = properties(props, node, next);
+    return obj;
   }
 
   if (type.isUnion()) {
@@ -217,11 +212,7 @@ function footprintOfType(type: Type, node: Node): Value {
       .filter((ut) => !ut.isUndefined())
       .map((type) => next(type));
 
-    if (uts.length != 1) {
-      throw new Error("Only single element unions aligned");
-    }
-
-    return uts[0];
+    return { kind: "union", items: uts };
   }
 
   if (type.isIntersection()) {
@@ -246,7 +237,7 @@ function footprintOfType(type: Type, node: Node): Value {
   }
 
   // when you encounter this, consider changing the function
-  return { kind: "TODO" };
+  return { kind: "uknown" };
 }
 
 function properties(
@@ -276,6 +267,7 @@ const loadApi = (path: string): Api => {
   const s = p.addSourceFileAtPath(path);
   const a = s.getTypeAliasOrThrow("Endpoints");
   const t = a.getType();
+  const cache = {};
 
   if (!t.isUnion()) {
     throw new Error(
@@ -296,22 +288,44 @@ const loadApi = (path: string): Api => {
     const verbPath = elements[0].getLiteralValueOrThrow(
       "Expected first element of endpoint tupple to be a literal string"
     ) as string;
+
     endpoints.push({
       name: verbPath,
-      request: footprintOfType(elements[1], a),
-      response: footprintOfType(elements[2], a),
+      request: typeToValue(elements[1], a, cache),
+      response: typeToValue(elements[2], a, cache),
     });
   });
   return { endpoints };
 };
 
 const diff = (before: Api, after: Api): ApiDiff => {
+  const deepEqual = <T>(x: T, y: T) => {
+    if (x === y) {
+      return true;
+    } else if (
+      typeof x == "object" &&
+      x != null &&
+      typeof y == "object" &&
+      y != null
+    ) {
+      if (Object.keys(x).length != Object.keys(y).length) return false;
+
+      for (var prop in x) {
+        if (y.hasOwnProperty(prop)) {
+          if (!deepEqual(x[prop], y[prop])) return false;
+        } else return false;
+      }
+
+      return true;
+    } else return false;
+  };
+
   const namedDiff = <T, TDiff>(
     before: Array<T>,
     after: Array<T>,
     nf: (t: T) => string,
     df: (before: T, after: T) => TDiff
-  ): NamedCollectionDiff<TDiff> => {
+  ): CollectionDiff<TDiff> => {
     const b = Object.fromEntries<T>(before.map((i) => [nf(i), i]));
     const bKeys = Object.keys(b);
     if (bKeys.length != before.length) {
@@ -324,7 +338,7 @@ const diff = (before: Api, after: Api): ApiDiff => {
     }
     const allKeys = new Set([...aKeys, ...bKeys]);
 
-    const diffs: NamedCollectionDiff<TDiff> = [];
+    const diffs: CollectionDiff<TDiff> = [];
 
     for (const k of allKeys) {
       const aa = a[k];
@@ -383,8 +397,16 @@ const diff = (before: Api, after: Api): ApiDiff => {
           diffProperties
         ),
       };
+    } else if (before.kind == "union" && after.kind == "union") {
+      return {
+        kind: "union",
+        items: after.items.map((i) => ({
+          kind: "unchanged",
+          value: { kind: "unchanged", value: i },
+        })),
+      };
     }
-    if (JSON.stringify(before) == JSON.stringify(after)) {
+    if (before.kind == after.kind && deepEqual(before, after)) {
       return {
         kind: "unchanged",
         value: after,
@@ -476,9 +498,19 @@ const renderDiff = (diff: ApiDiff) => {
           e.properties.forEach((p) => {});
         });
         break;
-      case "literal":
-        write(`'${e.value}'`);
-        break;
+        case "literal":
+          write(`'${e.value}'`);
+          break;
+        case "union":
+          line();
+          indentBlock(() => {
+              e.items.forEach(ee => {
+                renderValue(ee);
+                line(' |');
+              })
+          })
+          write(`'${e.items}'`);
+          break;
       default:
         write(e.kind);
         break;
@@ -486,7 +518,7 @@ const renderDiff = (diff: ApiDiff) => {
   };
 
   const renderNamedCollectionDiff = <T, TDiff>(
-    d: NamedCollectionDiff<TDiff>,
+    d: CollectionDiff<TDiff>,
     rd: (td: TDiff) => void
   ) => {
     for (const e of d) {
@@ -524,10 +556,18 @@ const renderDiff = (diff: ApiDiff) => {
       case "array":
         sqbraceBlock(() => renderValueDiff(e.item));
         break;
-      case "object":
-        braceBlock(() => {
-          renderNamedCollectionDiff(e.properties, renderPropertyDiff);
-        });
+        case "object":
+          braceBlock(() => {
+            renderNamedCollectionDiff(e.properties, renderPropertyDiff);
+          });
+          break;
+      case "union":
+        indentBlock(() => {
+            renderNamedCollectionDiff(e.items, ee => {
+              renderValueDiff(ee);
+              line(' |');
+            });
+        })
         break;
       case "unchanged":
         renderValue(e.value);
@@ -541,9 +581,6 @@ const renderDiff = (diff: ApiDiff) => {
         });
         break;
       }
-      default:
-        write(`'${e.kind}'`);
-        break;
     }
   };
 
@@ -559,7 +596,8 @@ const renderDiff = (diff: ApiDiff) => {
 };
 
 const api1 = loadApi("./src/endpoints.d.ts");
-const api2 = loadApi("./src copy/endpoints.d.ts");
+
+const api2 = loadApi("./src/endpoints.d copy.ts");
 
 const d = diff(api1, api2);
 
