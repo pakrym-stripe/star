@@ -22,7 +22,7 @@ jobs:
           echo 'DIFF<<EOF' >> $GITHUB_ENV
           cd current
           yarn
-          ./src/diff.ts ./current/src/endpoints.d.ts ./base/src/endpoints.d.ts >> $GITHUB_ENV
+          ./src/diff.ts ./src/endpoints.d.ts ../base/src/endpoints.d.ts >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
 
       - uses: actions/github-script@v5
