@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --loader ts-node/esm
+#!/usr/bin/env -S node --loader ts-node/esm --no-warnings
 
 import chalk from "chalk";
 
@@ -399,8 +399,8 @@ const renderDiff = (diff: Diff<Api>) => {
   })
 };
 
-const api1 = loadApi("./src/endpoints.d.ts");
-const api2 = loadApi("./src/endpoints.d copy.ts");
+const api1 = loadApi(process.argv.at(-2)!);
+const api2 = loadApi(process.argv.at(-1)!);
 const d = dddd(api1, api2);
 
 renderDiff(d);

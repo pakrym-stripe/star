@@ -7,6 +7,22 @@ jobs:
   comment:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
+        name: Checkout current
+        with:
+          path: current
+
+      - uses: actions/checkout@v3
+        name: Checkout current
+        with:
+          path: base
+          ref: ${{ github.event.pull_request.base.sha }}
+      
+      - run: 
+          echo 'DIFF<<EOF' >> $GITHUB_ENV
+          ./current/src/diff.ts ./current/src/endpoints.d.ts ./base/src/endpoints.d.ts >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+
       - uses: actions/github-script@v5
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -15,5 +31,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '👋 Thanks for reporting!'
+              body: '```\n${{ env.DIFF }}\n```!'
             })
