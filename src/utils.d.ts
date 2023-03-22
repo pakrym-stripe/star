@@ -17,7 +17,7 @@ type SearchResult<TResource> = {
     data: Array<TResource>
 }
 
-export type DeletedResource<TResource> = Resource<TResource>
+export type Deleted<TResource> = TResource;
 export type Resource<TResource> = Resources[TResource]
 export type Endpoint<TPath extends string, TRequest, TResponse> = [TPath, TRequest, TResponse]
 

@@ -2,99 +2,50 @@
 
 import chalk from "chalk";
 
-import { Project, Type, Symbol, SymbolFlags, Node } from "ts-morph";
+import { Project, Type, Symbol, SymbolFlags, Node, LeftHandSideExpression } from "ts-morph";
+import {dddd, Diff, DiffValue} from "./dddd";
+import {before} from "node:test";
 
-type PrimitiveType =
-  | {
-      kind: "string" | "boolean" | "number" | "uknown";
-    }
-  | {
-      kind: "literal";
-      value: string;
-    };
 
-type UnionValue = {
+type ApiPrimitive = {
+  kind: 'primitive',
+  primitive: 'string' | "boolean" | "number" | "uknown" | 'null',
+} | {
+  kind: 'primitive',
+  primitive: "literal";
+  value: string;
+}
+
+type ApiUnion = {
   kind: "union";
-  items: Array<Value>;
+  items: Array<ApiType>;
 };
 
-type ArrayValue = {
+type ApiArray = {
   kind: "array";
-  item: Value;
+  item: ApiType;
 };
-type Property = {
+type ApiProperty = {
   name: string;
-  value: Value;
+  value: ApiType;
   optional: boolean;
 };
 
-type ObjectValue = {
+type ApiObject = {
   kind: "object";
-  properties: Array<Property>;
+  properties: Array<ApiProperty>;
 };
 
-type Value = PrimitiveType | ArrayValue | ObjectValue | UnionValue;
+type ApiType = ApiPrimitive | ApiArray | ApiObject | ApiUnion;
 
-type Endpoint = {
-  name: string;
-  request: Value;
-  response: Value;
-};
-
-type PrimitiveDiff = {
-  kind: "primitive";
-  before: Value;
-  after: Value;
-};
-type AttributeDiff<T> = {
-  changed: boolean;
-  before: T;
-  after: T;
-};
-type PropertyDiff = {
-  name: string;
-  optional: AttributeDiff<boolean>;
-  value: ValueDiff;
-};
-type ObjectDiff = {
-  kind: "object";
-  properties: CollectionDiff<PropertyDiff>;
-};
-
-type ArrayDiff = {
-  kind: "array";
-  item: ValueDiff;
-};
-
-type UnionDiff = {
-  kind: "union";
-  items: CollectionDiff<ValueDiff>;
-};
-
-type Unchanged = {
-  kind: "unchanged";
-  value: Value;
-};
-type ValueDiff = Unchanged | ObjectDiff | ArrayDiff | PrimitiveDiff | UnionDiff;
-
-type EndpointDiff = {
-  name: string;
-  request: ValueDiff;
-  response: ValueDiff;
-};
-type CollectionDiffItem<TDiff> = {
-  kind: "added" | "removed" | "unchanged";
-  value: TDiff;
-};
-
-type CollectionDiff<TDiff> = Array<CollectionDiffItem<TDiff>>;
-
-type ApiDiff = {
-  endpoints: CollectionDiff<EndpointDiff>;
-};
+type ApiEndpoint = {
+  name: string,
+  request: ApiType,
+  response: ApiType,
+}
 
 type Api = {
-  endpoints: Array<Endpoint>;
+  endpoints: Array<ApiEndpoint>;
 };
 
 const defaultTsConfigFilePath = "./tsconfig.json";
@@ -112,39 +63,42 @@ const project = (tsConfigFilePath: string) => {
   return result;
 };
 
-function isPrimitive(type: Type): PrimitiveType | null {
+function isPrimitive(type: Type): ApiType | null {
   if (type.isString()) {
-    return { kind: "string" };
+    return { kind: 'primitive', primitive: "string" };
   }
   if (type.isStringLiteral()) {
-    return { kind: "literal", value: type.getLiteralValueOrThrow() as string };
+    return { kind: 'primitive', primitive:  "literal",
+      value: type.getLiteralValueOrThrow() as string
+    };
   }
   if (type.isUndefined()) {
-    return { kind: "uknown" };
+    return { kind: 'primitive', primitive: "uknown" };
   }
   if (type.isNull()) {
-    return { kind: "uknown" };
+    console.log('isNull');
+    return { kind: 'primitive', primitive: "null" };
   }
   if (type.isUnknown()) {
-    return { kind: "uknown" };
+    return { kind: 'primitive', primitive: "uknown" };
   }
   if (type.isAny()) {
-    return { kind: "uknown" };
+    return { kind: 'primitive', primitive: "uknown" };
   }
   if (type.isNumber()) {
-    return { kind: "number" };
+    return { kind: 'primitive', primitive: "number" };
   }
   if (type.isNumberLiteral()) {
-    return { kind: "number" };
+    return { kind: 'primitive', primitive: "number" };
   }
   if (type.isBoolean()) {
-    return { kind: "boolean" };
+    return { kind: 'primitive', primitive: "boolean" };
   }
   if (type.isBooleanLiteral()) {
-    return { kind: "boolean" };
+    return { kind: 'primitive', primitive:  "boolean" };
   }
   if (intrinsicNameOf(type) === "void") {
-    return { kind: "uknown" };
+    return { kind: 'primitive', primitive: "uknown" };
   }
   return null;
 }
@@ -157,16 +111,8 @@ function intrinsicNameOf(type: Type) {
 function typeToValue(
   type: Type,
   node: Node,
-  cache: Record<string, Value>
-): Value {
-  const alias = type.getAliasSymbol()?.getFullyQualifiedName();
-  if (alias) {
-    //console.log(alias);
-    const cached = cache[alias];
-    if (cached) {
-      return cached;
-    }
-  }
+  cache: Record<string, ApiType>
+): ApiType {
 
   const next = (nextType: Type) => {
     return typeToValue(nextType, node, cache);
@@ -187,23 +133,16 @@ function typeToValue(
   }
 
   if (type.isTuple()) {
-    return { kind: "uknown" };
+    return { kind: 'primitive', primitive: "uknown"};
   }
 
   if (type.isObject()) {
-    const obj: Value = {
-      kind: "object",
-      properties: [],
-    };
-
-    if (alias) {
-      cache[alias] = obj;
-    }
-
     const props = type.getProperties();
 
-    obj.properties = properties(props, node, next);
-    return obj;
+    return {
+      kind: "object",
+      properties: properties(props, node, next)
+    };
   }
 
   if (type.isUnion()) {
@@ -212,13 +151,15 @@ function typeToValue(
       .filter((ut) => !ut.isUndefined())
       .map((type) => next(type));
 
-    return { kind: "union", items: uts };
+    if (uts.length == 1) return uts[0];
+
+    return {kind: "union", items: uts };
   }
 
   if (type.isIntersection()) {
     const types = type.getIntersectionTypes().map((type) => next(type));
 
-    const allProps: Record<string, Property> = {};
+    const allProps: Record<string, ApiProperty> = {};
 
     for (const ut of types) {
       if (ut.kind != "object") {
@@ -237,22 +178,22 @@ function typeToValue(
   }
 
   // when you encounter this, consider changing the function
-  return { kind: "uknown" };
+  return { kind: 'primitive', primitive: "uknown"};
 }
 
 function properties(
   props: Symbol[],
   node: Node,
-  next: (type: Type) => Value
-): Array<Property> {
+  next: (type: Type) => ApiType
+): Array<ApiProperty> {
   return props.map((value) => property(value, node, next));
 }
 
 function property(
   prop: Symbol,
   node: Node,
-  next: (type: Type) => Value
-): Property {
+  next: (type: Type) => ApiType
+): ApiProperty {
   const type = prop.getTypeAtLocation(node);
   const isOptional = prop.hasFlags(SymbolFlags.Optional);
   return {
@@ -275,7 +216,7 @@ const loadApi = (path: string): Api => {
     );
   }
 
-  const endpoints: Array<Endpoint> = [];
+  const endpoints: Array<ApiEndpoint> = [];
 
   t.getUnionTypes().forEach((ut) => {
     const elements = ut.getTupleElements();
@@ -298,148 +239,8 @@ const loadApi = (path: string): Api => {
   return { endpoints };
 };
 
-const diff = (before: Api, after: Api): ApiDiff => {
-  const deepEqual = <T>(x: T, y: T) => {
-    if (x === y) {
-      return true;
-    } else if (
-      typeof x == "object" &&
-      x != null &&
-      typeof y == "object" &&
-      y != null
-    ) {
-      if (Object.keys(x).length != Object.keys(y).length) return false;
 
-      for (var prop in x) {
-        if (y.hasOwnProperty(prop)) {
-          if (!deepEqual(x[prop], y[prop])) return false;
-        } else return false;
-      }
-
-      return true;
-    } else return false;
-  };
-
-  const namedDiff = <T, TDiff>(
-    before: Array<T>,
-    after: Array<T>,
-    nf: (t: T) => string,
-    df: (before: T, after: T) => TDiff
-  ): CollectionDiff<TDiff> => {
-    const b = Object.fromEntries<T>(before.map((i) => [nf(i), i]));
-    const bKeys = Object.keys(b);
-    if (bKeys.length != before.length) {
-      throw new Error("non unique before keys");
-    }
-    const a = Object.fromEntries<T>(after.map((i) => [nf(i), i]));
-    const aKeys = Object.keys(a);
-    if (aKeys.length != after.length) {
-      throw new Error("non unique after keys");
-    }
-    const allKeys = new Set([...aKeys, ...bKeys]);
-
-    const diffs: CollectionDiff<TDiff> = [];
-
-    for (const k of allKeys) {
-      const aa = a[k];
-      const bb = b[k];
-      if (!aa) {
-        diffs.push({
-          kind: "removed",
-          value: df(bb, bb),
-        });
-      } else if (!bb) {
-        diffs.push({
-          kind: "added",
-          value: df(aa, aa),
-        });
-      } else {
-        diffs.push({
-          kind: "unchanged",
-          value: df(bb, aa),
-        });
-      }
-    }
-    return diffs;
-  };
-
-  const attributeDiff = <T>(before: T, after: T): AttributeDiff<T> => {
-    return {
-      changed: before != after,
-      before,
-      after,
-    };
-  };
-  const diffProperties = (before: Property, after: Property): PropertyDiff => {
-    if (before.name != after.name) {
-      throw new Error("names should be equal");
-    }
-    return {
-      name: before.name,
-      optional: attributeDiff(before.optional, after.optional),
-      value: diffValues(before.value, after.value),
-    };
-  };
-
-  const diffValues = (before: Value, after: Value): ValueDiff => {
-    if (before.kind == "array" && after.kind == "array") {
-      return {
-        kind: "array",
-        item: diffValues(before.item, after.item),
-      };
-    } else if (before.kind == "object" && after.kind == "object") {
-      return {
-        kind: "object",
-        properties: namedDiff(
-          before.properties,
-          after.properties,
-          (p) => p.name,
-          diffProperties
-        ),
-      };
-    } else if (before.kind == "union" && after.kind == "union") {
-      return {
-        kind: "union",
-        items: after.items.map((i) => ({
-          kind: "unchanged",
-          value: { kind: "unchanged", value: i },
-        })),
-      };
-    }
-    if (before.kind == after.kind && deepEqual(before, after)) {
-      return {
-        kind: "unchanged",
-        value: after,
-      };
-    }
-    return {
-      kind: "primitive",
-      before: before,
-      after: after,
-    };
-  };
-  const diffEndpoints = (before: Endpoint, after: Endpoint): EndpointDiff => {
-    if (before.name != after.name) {
-      throw new Error("names should be equal");
-    }
-    return {
-      name: before.name,
-      request: diffValues(before.request, after.request),
-      response: diffValues(before.response, after.response),
-    };
-  };
-
-  return {
-    endpoints: namedDiff(
-      before.endpoints,
-      after.endpoints,
-      (e) => e.name,
-      diffEndpoints
-    ),
-  };
-};
-
-const renderDiff = (diff: ApiDiff) => {
+const renderDiff = (diff: Diff<Api>) => {
   let bg: typeof chalk = chalk;
   const addedBlock = (f: () => void) => {
     const oldBg = bg;
@@ -488,118 +289,114 @@ const renderDiff = (diff: ApiDiff) => {
     write("]");
   };
 
-  const renderValue = (e: Value) => {
+  const renderValue = (e: ApiType) => {
     switch (e.kind) {
       case "array":
         sqbraceBlock(() => renderValue(e.item));
         break;
       case "object":
         braceBlock(() => {
-          e.properties.forEach((p) => {});
+          e.properties.forEach(renderProperty);
         });
         break;
-        case "literal":
-          write(`'${e.value}'`);
-          break;
-        case "union":
-          line();
-          indentBlock(() => {
-              e.items.forEach(ee => {
-                renderValue(ee);
-                line(' |');
-              })
-          })
-          write(`'${e.items}'`);
-          break;
+      case "union":
+        line();
+        indentBlock(() => {
+            e.items.forEach(ee => {
+              write('| ');
+              renderValue(ee);
+              line();
+            })
+        })
+        break;
       default:
         write(e.kind);
         break;
     }
   };
 
-  const renderNamedCollectionDiff = <T, TDiff>(
-    d: CollectionDiff<TDiff>,
-    rd: (td: TDiff) => void
-  ) => {
-    for (const e of d) {
-      switch (e.kind) {
-        case "added":
-          addedBlock(() => rd(e.value));
-          break;
-        case "removed":
-          removedBlock(() => rd(e.value));
-          break;
-        case "unchanged":
-          rd(e.value);
-          break;
+  const r = <T>(d: Diff<T>, rf : (dv: DiffValue<T>) => void) => {
+    if (d.diff == 'replaced')
+    {
+      const before = d.before;
+      if (before != null)
+      {
+        removedBlock(() => rf(before));
+      }
+
+      const after = d.after;
+      if (after != null)
+      {
+        addedBlock(() => rf(after));
       }
     }
-  };
-
-  const renderPropertyDiff = (p: PropertyDiff) => {
-    write(p.name);
-    if (!p.optional.changed) {
-      write(p.optional.after ? "?" : "");
-    } else if (p.optional.after) {
-      addedBlock(() => write("?"));
-    } else {
-      removedBlock(() => write("?"));
+    else
+    {
+      rf(d.value);
     }
+  }
 
+
+  const renderPropertyDiff = (p: DiffValue<ApiProperty>) => {
+    r(p.name, v => write(v));
+    r(p.optional, v => write(v ? '?' : ''));
     write(": ");
-    renderValueDiff(p.value);
+    r(p.value, v => renderValueDiff(v))
     line(",");
   };
 
-  const renderValueDiff = (e: ValueDiff) => {
+  const renderValueDiff = (e: DiffValue<ApiType>) => {
     switch (e.kind) {
       case "array":
-        sqbraceBlock(() => renderValueDiff(e.item));
+        sqbraceBlock(() => r(e.item, renderValueDiff));
         break;
-        case "object":
-          braceBlock(() => {
-            renderNamedCollectionDiff(e.properties, renderPropertyDiff);
-          });
-          break;
+      case "object":
+        braceBlock(() => {
+          for (const p of e.properties) {
+            r(p, renderPropertyDiff);
+          }
+        });
+        break;
       case "union":
+        line();
         indentBlock(() => {
-            renderNamedCollectionDiff(e.items, ee => {
-              renderValueDiff(ee);
-              line(' |');
-            });
+          for (const p of e.items) {
+            write('| ')
+            r(p, renderValueDiff);
+            line();
+          }
         })
         break;
-      case "unchanged":
-        renderValue(e.value);
-        break;
-      case "primitive": {
-        removedBlock(() => {
-          renderValue(e.before);
-        });
-        addedBlock(() => {
-          renderValue(e.after);
-        });
-        break;
-      }
+      case 'primitive':
+        switch (e.primitive) {
+          case "literal":
+            write(`'${e.value}'`);
+            break;
+          default:
+            write(e.primitive);
+            break;
+        }
     }
   };
 
-  const renderEnpointDiff = (e: EndpointDiff) => {
-    line(e.name);
-    renderValueDiff(e.request);
+  const renderEnpointDiff = (e: DiffValue<ApiEndpoint>) => {
+    r(e.name, v => write(v));
+    r(e.request, renderValueDiff);
     line();
-    renderValueDiff(e.response);
+    r(e.response, renderValueDiff);
     line();
   };
 
-  renderNamedCollectionDiff(diff.endpoints, renderEnpointDiff);
+  r(diff, d=> {
+    for (let endpoint of d.endpoints) {
+      r(endpoint, renderEnpointDiff);
+    }
+  })
 };
 
 const api1 = loadApi("./src/endpoints.d.ts");
-
 const api2 = loadApi("./src/endpoints.d copy.ts");
-
-const d = diff(api1, api2);
+const d = dddd(api1, api2);
 
 renderDiff(d);
 
