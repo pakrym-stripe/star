@@ -217,7 +217,7 @@ export type Endpoints =
       expand?: Array<string>,
       is_account_default?: boolean,
       limit?: number,
-      starting_after?: string,
+      starting_after: number,
     },
     List<TerminalConfiguration>,
   ]

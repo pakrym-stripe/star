@@ -286,7 +286,7 @@ const renderDiff = (diff: Diff<Api>) => {
     write("]");
   };
 
-  const r = <T>(d: Diff<T>, rf : (dv: DiffValue<T>) => void) => {
+  const r = <T>(d: Diff<T>, rf : (dv: DiffValue<T>) => void, unchanged?: () => void) => {
     if (d.diff == 'replaced')
     {
       const before = d.before;
@@ -300,6 +300,10 @@ const renderDiff = (diff: Diff<Api>) => {
       {
         addedBlock(() => rf(after));
       }
+    }
+    else if (d.diff == 'unchanged' && unchanged )
+    {
+      unchanged();
     }
     else
     {
@@ -323,7 +327,7 @@ const renderDiff = (diff: Diff<Api>) => {
       case "object":
         braceBlock(() => {
           for (const p of e.properties) {
-            r(p, renderPropertyDiff);
+            r(p, renderPropertyDiff, () => {});
           }
         });
         break;
@@ -353,16 +357,16 @@ const renderDiff = (diff: Diff<Api>) => {
   };
 
   const renderEnpointDiff = (e: DiffValue<ApiEndpoint>) => {
-    r(e.name, v => write(v));
-    r(e.request, renderValueDiff);
+    r(e.name, v => line(v));
+    r(e.request, renderValueDiff, () => write('{...}'));
     line();
-    r(e.response, renderValueDiff);
+    r(e.response, renderValueDiff, () => write('{...}'));
     line();
   };
 
   r(diff, d=> {
     for (let endpoint of d.endpoints) {
-      r(endpoint, renderEnpointDiff);
+      r(endpoint, renderEnpointDiff, () => {});
     }
   })
 };
