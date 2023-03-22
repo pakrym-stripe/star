@@ -23,7 +23,7 @@ jobs:
           cd current
           yarn
           ./src/diff.ts ./src/endpoints.d.ts ../base/src/endpoints.d.ts > $DIFF_FILE
-          echo 'DIFF_FILE=$DIFF_FILE' >> $GITHUB_ENV
+          echo "DIFF_FILE=$DIFF_FILE" >> $GITHUB_ENV
 
       - uses: actions/github-script@v5
         with:
