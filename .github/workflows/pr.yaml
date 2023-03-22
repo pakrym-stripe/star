@@ -17,8 +17,8 @@ jobs:
         with:
           path: base
           ref: ${{ github.event.pull_request.base.sha }}
-      
-      - run: 
+
+      - run: |
           echo 'DIFF<<EOF' >> $GITHUB_ENV
           ./current/src/diff.ts ./current/src/endpoints.d.ts ./base/src/endpoints.d.ts >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
