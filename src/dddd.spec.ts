@@ -182,7 +182,7 @@ describe('object with primitive list', () => {
         kind: 'obj',
         value: [
             {
-                kind: 'primitive',
+                kind: 'primitive' as const,
                 primitive: 'string',
             },
         ]
@@ -199,6 +199,15 @@ describe('object with primitive list', () => {
                 value: [
                     {
                         diff: 'replaced',
+                        before: {
+                            kind: 'primitive',
+                            primitive: 'string'
+                        },
+                        after: null
+                    },
+
+                    {
+                        diff: 'replaced',
                         before: null,
                         after: {
                             kind: 'primitive',
@@ -206,11 +215,72 @@ describe('object with primitive list', () => {
                         }
                     },
 
+                ]
+            },
+        } satisfies Diff<typeof after>);
+    });
+    test('equal', () => {
+        const after = deepClone(before)
+
+        expect(dddd(before, after)).toEqual({
+            diff: 'unchanged',
+            value: {
+                kind: 'obj',
+                value: [
+                    {
+                        diff: 'unchanged',
+                        value: {
+                            kind: 'primitive',
+                            primitive: 'string'
+                        }
+                    },
+                ]
+            },
+        } satisfies Diff<typeof after>);
+    });
+});
+
+
+describe('object with composite list', () => {
+    const before = {
+        kind: 'obj',
+        value: [
+            {
+                kind: 'sub' as const,
+                prop: 'string',
+            },
+        ]
+    };
+
+    test('not equal', () => {
+        const after = deepClone(before);
+        after.value[0].prop = 'boolean';
+
+        expect(dddd(before, after)).toEqual({
+            diff: 'changed',
+            value: {
+                kind: 'obj',
+                value: [
+                    {
+                        diff: 'replaced',
+                        before: null,
+                        after: {
+                            kind: 'sub',
+                            prop: {
+                                diff: 'unchanged',
+                                value: 'boolean'
+                            }
+                        }
+                    },
+
                     {
                         diff: 'replaced',
                         before: {
-                            kind: 'primitive',
-                            primitive: 'string'
+                            kind: 'sub',
+                            prop:  {
+                                diff: 'unchanged',
+                                value: 'string'
+                            }
                         },
                         after: null
                     }
@@ -230,16 +300,22 @@ describe('object with primitive list', () => {
                         diff: 'replaced',
                         before: null,
                         after: {
-                            kind: 'primitive',
-                            primitive: 'string'
+                            kind: 'sub',
+                            prop: {
+                                diff: 'unchanged',
+                                value: 'string'
+                            }
                         }
                     },
 
                     {
                         diff: 'replaced',
                         before: {
-                            kind: 'primitive',
-                            primitive: 'string'
+                            kind: 'sub',
+                            prop:  {
+                                diff: 'unchanged',
+                                value: 'string'
+                            }
                         },
                         after: null
                     }

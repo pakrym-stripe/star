@@ -3,9 +3,7 @@
 import chalk from "chalk";
 
 import { Project, Type, Symbol, SymbolFlags, Node, LeftHandSideExpression } from "ts-morph";
-import {dddd, Diff, DiffValue} from "./dddd";
-import {before} from "node:test";
-
+import {dddd, Diff, DiffValue} from "./dddd.js";
 
 type ApiPrimitive = {
   kind: 'primitive',
@@ -76,7 +74,6 @@ function isPrimitive(type: Type): ApiType | null {
     return { kind: 'primitive', primitive: "uknown" };
   }
   if (type.isNull()) {
-    console.log('isNull');
     return { kind: 'primitive', primitive: "null" };
   }
   if (type.isUnknown()) {
@@ -284,35 +281,9 @@ const renderDiff = (diff: Diff<Api>) => {
     write("}");
   };
   const sqbraceBlock = (f: () => void) => {
-    line("[");
+    write("[");
     indentBlock(f);
     write("]");
-  };
-
-  const renderValue = (e: ApiType) => {
-    switch (e.kind) {
-      case "array":
-        sqbraceBlock(() => renderValue(e.item));
-        break;
-      case "object":
-        braceBlock(() => {
-          e.properties.forEach(renderProperty);
-        });
-        break;
-      case "union":
-        line();
-        indentBlock(() => {
-            e.items.forEach(ee => {
-              write('| ');
-              renderValue(ee);
-              line();
-            })
-        })
-        break;
-      default:
-        write(e.kind);
-        break;
-    }
   };
 
   const r = <T>(d: Diff<T>, rf : (dv: DiffValue<T>) => void) => {
@@ -335,7 +306,6 @@ const renderDiff = (diff: Diff<Api>) => {
       rf(d.value);
     }
   }
-
 
   const renderPropertyDiff = (p: DiffValue<ApiProperty>) => {
     r(p.name, v => write(v));
@@ -360,10 +330,13 @@ const renderDiff = (diff: Diff<Api>) => {
       case "union":
         line();
         indentBlock(() => {
-          for (const p of e.items) {
+          for (const [i, p] of e.items.entries()) {
             write('| ')
-            r(p, renderValueDiff);
-            line();
+            indentBlock(() => r(p, renderValueDiff));
+            if (i != e.items.length - 1)
+            {
+              line();
+            }
           }
         })
         break;
