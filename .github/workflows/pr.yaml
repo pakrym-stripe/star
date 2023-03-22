@@ -20,6 +20,8 @@ jobs:
 
       - run: |
           DIFF_FILE=$(realpath diff.txt)
+          cde current
+          yarn
           ./src/diff.ts ./src/endpoints.d.ts ../base/src/endpoints.d.ts > $DIFF_FILE
           echo 'DIFF_FILE=$DIFF_FILE' >> $GITHUB_ENV
 
