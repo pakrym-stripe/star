@@ -237,35 +237,63 @@ const loadApi = (path: string): Api => {
 };
 
 
+const out = process.stdout;
+
 const renderDiff = (diff: Diff<Api>) => {
   let bg: typeof chalk = chalk;
+  let addedLine = "";
+  let removedLine = "";
+  let w : (s: string) => void = (s) => {
+    addedLine += s;
+    removedLine += s;
+  };
+
   const addedBlock = (f: () => void) => {
     const oldBg = bg;
+    const oldW = w;
+    w = (s) => {
+      addedLine += s;
+    };
     bg = chalk.bgGreen.black;
     f();
     bg = oldBg;
+    w = oldW;
   };
   const removedBlock = (f: () => void) => {
     const oldBg = bg;
+    const oldW = w; w = (s) => {
+      removedLine += s;
+    };
     bg = chalk.bgRed.black;
     f();
     bg = oldBg;
+    w = oldW;
   };
-  const out = process.stdout;
   let indentLevel = 0;
   let wroteIndent = false;
   const write = (s: string) => {
     if (!wroteIndent) {
       wroteIndent = true;
       for (let i = 0; i < indentLevel; i++) {
-        write("  ");
+        w("  ");
       }
     }
-    out.write(bg(s));
+    w(s);
   };
   const line = (s: string = "") => {
-    write(s);
-    write("\n");
+    w(s);
+    w("\n");
+    if (addedLine != removedLine)
+    {
+      out.write("-" + removedLine);
+      out.write("+" + addedLine);
+    }
+    else
+    {
+      out.write(addedLine);
+    }
+    addedLine = "";
+    removedLine = "";
     wroteIndent = false;
   };
 
