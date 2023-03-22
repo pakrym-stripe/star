@@ -114,6 +114,7 @@ export type TerminalReader = {
   ip_address: string | null,
   label: string,
   livemode: boolean,
+  title: string;
   location: TerminalLocation | string | null,
   metadata: unknown /*map*/,
   object: 'terminal.reader',
