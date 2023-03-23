@@ -405,10 +405,60 @@ const renderDiff = (diff: Diff<Api>) => {
   })
 };
 
+const analyzeDiff = (api: Diff<Api>) => {
+  const warn = (s: string) => {
+    console.error(`::warning file=api/index.ts,title={Breaking change}::{${s}}`);
+  }
+  const analyzeRequestType = (type: Diff<ApiType>) =>
+  {
+    if (type.diff == 'unchanged')
+    {
+      return;
+    }
+
+    if (type.diff == 'replaced')
+    {
+      warn("Changing request value type is a breaking change");
+      return;
+    }
+
+    switch (type.value.kind)
+    {
+      case "array":
+        break;
+      case "object":
+        for (const prop of type.value.properties) {
+          if (prop.diff == 'replaced' && prop.before == null && prop.after != null)
+          {
+            const newProp = prop.after;
+            if (newProp.optional.diff == 'unchanged' && !newProp.optional.value)
+            {
+              warn("Adding required request properties is breaking change");
+            }
+          }
+        }
+        break;
+      case "union":
+        break;
+
+    }
+  }
+
+  if (api.diff != 'replaced')
+  {
+    for (let endpoint of api.value.endpoints) {
+      if (endpoint.diff == 'changed')
+      {
+        analyzeRequestType(endpoint.value.request);
+      }
+    }
+  }
+}
+
 const api1 = loadApi(process.argv.at(-2)!);
 const api2 = loadApi(process.argv.at(-1)!);
 const d = dddd(api1, api2);
 
 renderDiff(d);
-
+analyzeDiff(d);
 export default {};
