@@ -33,8 +33,8 @@ jobs:
             const diff = fs.readFileSync('${{ env.DIFF_FILE }}','utf8').toString();
 
             github.rest.issues.createComment({
-              issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '## REST API Changes:\n```diff\n'+diff+'\n```'
+              pull_number: context.payload.issue.number,
+              body: diff
             })

@@ -396,6 +396,7 @@ const renderDiff = (diff: Diff<Api>) => {
     line();
     r(e.response, renderValueDiff, () => write('{...}'));
     line();
+    line();
   };
 
   r(diff, d=> {
@@ -405,9 +406,11 @@ const renderDiff = (diff: Diff<Api>) => {
   })
 };
 
-const analyzeDiff = (api: Diff<Api>) => {
+const analyzeDiff = (api: Diff<Api>): Array<string> => {
+  const warnings: string[] = [];
+
   const warn = (s: string) => {
-    console.error(`::warning file=api/index.ts,title={Breaking change}::{${s}}`);
+    console.error(`::warning file=api/index.ts,title=Breaking change::${s}`);
   }
   const analyzeRequestType = (type: Diff<ApiType>) =>
   {
@@ -453,12 +456,22 @@ const analyzeDiff = (api: Diff<Api>) => {
       }
     }
   }
+
+  return warnings;
 }
 
 const api1 = loadApi(process.argv.at(-2)!);
 const api2 = loadApi(process.argv.at(-1)!);
 const d = dddd(api1, api2);
 
+console.log("### Affected endpoints:")
+console.log();
+console.log("``` diff");
 renderDiff(d);
-analyzeDiff(d);
+console.log("```");
+console.log();
+console.log("### Warnings");
+for (const w of analyzeDiff(d)) {
+ console.log(" - ⚠️ " + w);
+}
 export default {};
