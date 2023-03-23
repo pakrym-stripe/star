@@ -17,19 +17,24 @@ jobs:
         with:
           path: base
           ref: ${{ github.event.pull_request.base.sha }}
-      
-      - run: 
-          echo 'DIFF<<EOF' >> $GITHUB_ENV
-          ./current/src/diff.ts ./current/src/endpoints.d.ts ./base/src/endpoints.d.ts >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
+
+      - run: |
+          DIFF_FILE=$(realpath diff.txt)
+          cd current
+          yarn
+          ./src/diff.ts ../base/api/index.ts ./api/index.ts > $DIFF_FILE
+          echo "DIFF_FILE=$DIFF_FILE" >> $GITHUB_ENV
 
       - uses: actions/github-script@v5
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
+            const fs = require('fs');
+            const diff = fs.readFileSync('${{ env.DIFF_FILE }}','utf8').toString();
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '```\n${{ env.DIFF }}\n```!'
+              body: '## REST API Changes:\n```diff\n'+diff+'\n```'
             })

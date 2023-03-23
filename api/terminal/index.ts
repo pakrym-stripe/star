@@ -1,4 +1,4 @@
-import {List, Deleted} from './utils';
+import {List, Deleted} from '../../src/utils';
 // File generated from our OpenAPI spec
 export type File = {};
 export type DeviceTypeSpecificConfig = {splashscreen?: File | string};
