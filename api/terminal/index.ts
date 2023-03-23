@@ -114,10 +114,11 @@ export type TerminalReader = {
   ip_address: string | null,
   label: string,
   livemode: boolean,
+  title: string,
   location: TerminalLocation | string | null,
   metadata: unknown /*map*/,
   object: 'terminal.reader',
-  serial_number: string,
+  serial_number: number,
   status: string | null,
 };
 export type Resources =
@@ -405,6 +406,7 @@ export type Endpoints =
       location?: string,
       metadata?: unknown /*map*/ | '',
       registration_code: string,
+      title: string,
     },
     TerminalReader,
   ]
