@@ -483,7 +483,7 @@ export type Endpoints =
       amount?: number,
       charge?: string,
       expand?: Array<string>,
-      metadata?: unknown /*map*/,
+      metadata: unknown /*map*/,
       payment_intent?: string,
       refund_application_fee?: boolean,
       reverse_transfer?: boolean,

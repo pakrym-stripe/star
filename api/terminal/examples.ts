@@ -23,5 +23,17 @@ export const Examples: Array<Endpoints> = [
                     }
             }
         }
+    ],
+    [
+        'post /v1/terminal/readers',
+        {
+
+        },
+        {
+            object: 'terminal.reader',
+            action: {
+                failure_code: ''
+            }
+        }
     ]
 ];
