@@ -440,6 +440,11 @@ const analyzeDiff = (api: Diff<Api>): Array<string> => {
               warn("Adding required request properties is breaking change");
             }
           }
+
+          if (prop.diff == 'changed')
+          {
+            analyzeRequestType(prop.value.value)
+          }
         }
         break;
       case "union":
