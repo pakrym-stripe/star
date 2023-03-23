@@ -410,6 +410,7 @@ const analyzeDiff = (api: Diff<Api>): Array<string> => {
   const warnings: string[] = [];
 
   const warn = (s: string) => {
+    warnings.push(s);
     console.error(`::warning file=api/index.ts,title=Breaking change::${s}`);
   }
   const analyzeRequestType = (type: Diff<ApiType>) =>
