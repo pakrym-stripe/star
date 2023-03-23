@@ -35,6 +35,7 @@ jobs:
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.payload.issue.number,
+              pull_number: context.issue.number,
+
               body: diff
             })
