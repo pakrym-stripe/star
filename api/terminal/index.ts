@@ -118,7 +118,7 @@ export type TerminalReader = {
   location: TerminalLocation | string | null,
   metadata: unknown /*map*/,
   object: 'terminal.reader',
-  serial_number: number,
+  serial_number: string,
   status: string | null,
 };
 export type Resources =
@@ -405,7 +405,7 @@ export type Endpoints =
       label?: string,
       location?: string,
       metadata?: unknown /*map*/ | '',
-      registration_code: string,
+      registration_code: number,
       title: string,
     },
     TerminalReader,

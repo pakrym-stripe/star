@@ -443,6 +443,7 @@ const analyzeDiff = (api: Diff<Api>): Array<string> => {
 
           if (prop.diff == 'changed')
           {
+            console.log(prop);
             analyzeRequestType(prop.value.value)
           }
         }
