@@ -36,5 +36,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '```\n'+diff+'\n```!'
+              body: '## REST API Changes:\n```diff\n'+diff+'\n```'
             })
