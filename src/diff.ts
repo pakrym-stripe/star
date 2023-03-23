@@ -209,7 +209,7 @@ const loadApi = (path: string): Api => {
 
   if (!t.isUnion()) {
     throw new Error(
-      "Uknonwn Endpoints type, expected a union of three element tupples"
+      "Unknown Endpoints type, expected a union of three element tuples"
     );
   }
 
@@ -219,12 +219,12 @@ const loadApi = (path: string): Api => {
     const elements = ut.getTupleElements();
     if (elements.length != 3) {
       throw new Error(
-        "Uknonwn Endpoints type, expected a union of three element tupples"
+        "Unknown Endpoints type, expected a union of three element tuples"
       );
     }
 
     const verbPath = elements[0].getLiteralValueOrThrow(
-      "Expected first element of endpoint tupple to be a literal string"
+      "Expected first element of endpoint tuple to be a literal string"
     ) as string;
 
     endpoints.push({

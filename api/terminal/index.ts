@@ -1,4 +1,4 @@
-import {List, Deleted} from './utils';
+import {List, Deleted} from '../../src/utils';
 // File generated from our OpenAPI spec
 export type File = {};
 export type DeviceTypeSpecificConfig = {splashscreen?: File | string};
@@ -77,7 +77,6 @@ export type RefundPaymentAction = {
   refund?: Refund | string,
   refund_application_fee?: boolean,
   reverse_transfer?: boolean,
-  reverse_transfer_again?: boolean,
 };
 export type LineItem = {amount: number, description: string, quantity: number};
 export type Cart = {
@@ -115,6 +114,7 @@ export type TerminalReader = {
   ip_address: string | null,
   label: string,
   livemode: boolean,
+  title: string;
   location: TerminalLocation | string | null,
   metadata: unknown /*map*/,
   object: 'terminal.reader',
@@ -217,7 +217,8 @@ export type Endpoints =
       expand?: Array<string>,
       is_account_default?: boolean,
       limit?: number,
-      starting_after: number,
+      limit2?: number,
+      starting_after?: string,
     },
     List<TerminalConfiguration>,
   ]
