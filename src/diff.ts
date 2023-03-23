@@ -285,8 +285,14 @@ const renderDiff = (diff: Diff<Api>) => {
     w("\n");
     if (addedLine != removedLine)
     {
-      out.write("-" + removedLine);
-      out.write("+" + addedLine);
+      if (removedLine.length > 0)
+      {
+        out.write("-" + removedLine);
+      }
+      if (addedLine.length > 0)
+      {
+        out.write("+" + addedLine);
+      }
     }
     else
     {
