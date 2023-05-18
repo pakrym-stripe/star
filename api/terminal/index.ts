@@ -477,7 +477,7 @@ export type Endpoints =
   | [
     'post /v1/terminal/readers/{reader}/refund_payment',
     {
-      reader: string,
+      reader: number,
       amount?: number,
       charge?: string,
       expand?: Array<string>,
